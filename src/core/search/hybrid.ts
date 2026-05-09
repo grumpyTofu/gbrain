@@ -13,8 +13,22 @@ import type { BrainEngine } from '../engine.ts';
 import { MAX_SEARCH_LIMIT, clampSearchLimit } from '../engine.ts';
 import type { SearchResult, SearchOpts } from '../types.ts';
 import { embed } from '../embedding.ts';
+import { loadConfig } from '../config.ts';
 import { dedupResults } from './dedup.ts';
 import { autoDetectDetail } from './intent.ts';
+
+/**
+ * Embedding is reachable if any of these are set: env OPENAI_API_KEY,
+ * env OPENAI_BASE_URL (local server), config.openai_api_key, or
+ * config.openai_base_url. Falls back to keyword-only when none of them
+ * are present, matching the original hardcoded env-var gate but extended
+ * for config-file deployments and local servers.
+ */
+function embeddingsConfigured(): boolean {
+  if (process.env.OPENAI_API_KEY || process.env.OPENAI_BASE_URL) return true;
+  const cfg = loadConfig();
+  return Boolean(cfg?.openai_api_key || cfg?.openai_base_url);
+}
 
 const RRF_K = 60;
 const COMPILED_TRUTH_BOOST = 2.0;
@@ -77,8 +91,11 @@ export async function hybridSearch(
   // Run keyword search (always available, no API key needed)
   const keywordResults = await engine.searchKeyword(query, searchOpts);
 
-  // Skip vector search entirely if no OpenAI key is configured
-  if (!process.env.OPENAI_API_KEY) {
+  // Skip vector search entirely if no embedding endpoint is configured.
+  // Accepts env vars OR config-file values (loadConfig) so local OpenAI-
+  // compatible servers like ~/embedding-service work without exporting
+  // a placeholder OPENAI_API_KEY into the user's shell.
+  if (!embeddingsConfigured()) {
     // Apply backlink boost in keyword-only path too. One getBacklinkCounts query
     // per search request; not N+1.
     if (keywordResults.length > 0) {

@@ -271,11 +271,13 @@ const put_page: Operation = {
     }
 
     if (ctx.dryRun) return { dry_run: true, action: 'put_page', slug: p.slug };
-    // Skip embedding when no OpenAI key is configured. importFromContent's existing
-    // try/catch around embed only catches; without a key the OpenAI client would
-    // attempt 5 retries with exponential backoff (up to ~2 minutes total) before
-    // giving up. Detect early.
-    const noEmbed = !process.env.OPENAI_API_KEY;
+    // Skip embedding when no embedding endpoint is configured. importFromContent's
+    // existing try/catch around embed only catches; without a key/URL the OpenAI
+    // client would attempt 5 retries with exponential backoff (~2 min total) before
+    // giving up. Accepts env vars OR config-file values so local OpenAI-compatible
+    // servers don't require exporting placeholder env vars.
+    const cfg = (await import('./config.ts')).loadConfig();
+    const noEmbed = !(process.env.OPENAI_API_KEY || process.env.OPENAI_BASE_URL || cfg?.openai_api_key || cfg?.openai_base_url);
     const result = await importFromContent(ctx.engine, slug, p.content as string, { noEmbed });
 
     // Auto-link post-hook: runs AFTER importFromContent (which is its own
