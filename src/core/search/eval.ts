@@ -234,7 +234,7 @@ async function runQuery(
   }
 
   if (strategy === 'vector') {
-    const embedding = await embed(query);
+    const embedding = await embed(query, { task: 'query' });
     const results = await engine.searchVector(embedding, { limit });
     return results.map(r => r.slug);
   }

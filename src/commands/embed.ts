@@ -194,7 +194,7 @@ async function embedPage(
     return;
   }
 
-  const embeddings = await embedBatch(toEmbed.map(c => c.chunk_text));
+  const embeddings = await embedBatch(toEmbed.map(c => c.chunk_text), { task: 'passage' });
   const embeddingMap = new Map<number, Float32Array>();
   for (let j = 0; j < toEmbed.length; j++) {
     embeddingMap.set(toEmbed[j].chunk_index, embeddings[j]);
@@ -258,7 +258,7 @@ async function embedAll(
     }
 
     try {
-      const embeddings = await embedBatch(toEmbed.map(c => c.chunk_text));
+      const embeddings = await embedBatch(toEmbed.map(c => c.chunk_text), { task: 'passage' });
       // Build a map of new embeddings by chunk_index
       const embeddingMap = new Map<number, Float32Array>();
       for (let j = 0; j < toEmbed.length; j++) {

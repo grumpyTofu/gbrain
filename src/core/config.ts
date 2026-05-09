@@ -28,6 +28,28 @@ export interface GBrainConfig {
   database_url?: string;
   database_path?: string;
   openai_api_key?: string;
+  /**
+   * Override the OpenAI base URL (e.g. http://127.0.0.1:8088/v1 to point at
+   * a local OpenAI-compatible server like an llama.cpp / TEI / sentence-
+   * transformers shim). When set, embedding calls go here instead of OpenAI.
+   * Env override: OPENAI_BASE_URL.
+   */
+  openai_base_url?: string;
+  /**
+   * Embedding model name. Defaults to OpenAI's text-embedding-3-large for
+   * backward compat. Models in the `jina-embeddings-v4` family get the
+   * `-query` / `-passage` suffix appended automatically by the embedding
+   * service so a local FastAPI shim can route prompt_name correctly.
+   * Env override: GBRAIN_EMBEDDING_MODEL.
+   */
+  embedding_model?: string;
+  /**
+   * Embedding output dimensions. Must match `vector(N)` in the schema; if
+   * you change this you also need a numbered migration in `./migrate.ts`
+   * to ALTER the chunks column. Defaults to 1536 (OpenAI tel-3-large).
+   * Env override: GBRAIN_EMBEDDING_DIM.
+   */
+  embedding_dimensions?: number;
   anthropic_api_key?: string;
   /**
    * Optional storage backend config (S3/Supabase/local). Shape matches
@@ -59,11 +81,17 @@ export function loadConfig(): GBrainConfig | null {
     || (fileConfig?.database_path ? 'pglite' : 'postgres');
 
   // Merge: env vars override config file
+  const embDimEnv = process.env.GBRAIN_EMBEDDING_DIM
+    ? Number(process.env.GBRAIN_EMBEDDING_DIM)
+    : undefined;
   const merged = {
     ...fileConfig,
     engine: inferredEngine,
     ...(dbUrl ? { database_url: dbUrl } : {}),
     ...(process.env.OPENAI_API_KEY ? { openai_api_key: process.env.OPENAI_API_KEY } : {}),
+    ...(process.env.OPENAI_BASE_URL ? { openai_base_url: process.env.OPENAI_BASE_URL } : {}),
+    ...(process.env.GBRAIN_EMBEDDING_MODEL ? { embedding_model: process.env.GBRAIN_EMBEDDING_MODEL } : {}),
+    ...(embDimEnv && Number.isFinite(embDimEnv) ? { embedding_dimensions: embDimEnv } : {}),
   };
   return merged as GBrainConfig;
 }

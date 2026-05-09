@@ -812,6 +812,28 @@ export const MIGRATIONS: Migration[] = [
       END $$;
     `,
   },
+  {
+    version: 25,
+    name: 'embedding_dim_1024_for_jina_v4',
+    // Switch the chunks embedding column from vector(1536) to vector(1024)
+    // to support Jina v4 (matryoshka — leading 1024 dims carry ~98% of the
+    // 2048-dim score). 1024 fits comfortably under pgvector's HNSW
+    // 2000-dim ceiling on the regular `vector` type so no halfvec or
+    // ivfflat detour is needed. Existing embeddings are dropped because
+    // pgvector dimension is fixed at the column level. Page text in
+    // `pages` is preserved; re-run `gbrain embed --all` afterward to
+    // rebuild chunks against the new model.
+    sql: `
+      DROP INDEX IF EXISTS idx_chunks_embedding;
+      ALTER TABLE content_chunks DROP COLUMN IF EXISTS embedding;
+      ALTER TABLE content_chunks ADD COLUMN embedding vector(1024);
+      ALTER TABLE content_chunks ALTER COLUMN model SET DEFAULT 'jina-embeddings-v4';
+      DELETE FROM content_chunks;
+      CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON content_chunks USING hnsw (embedding vector_cosine_ops);
+      UPDATE config SET value = '1024' WHERE key = 'embedding_dimensions';
+      UPDATE config SET value = 'jina-embeddings-v4' WHERE key = 'embedding_model';
+    `,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS.length > 0

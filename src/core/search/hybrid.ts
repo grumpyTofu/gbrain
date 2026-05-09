@@ -111,7 +111,7 @@ export async function hybridSearch(
   let vectorLists: SearchResult[][] = [];
   let queryEmbedding: Float32Array | null = null;
   try {
-    const embeddings = await Promise.all(queries.map(q => embed(q)));
+    const embeddings = await Promise.all(queries.map(q => embed(q, { task: 'query' })));
     queryEmbedding = embeddings[0];
     vectorLists = await Promise.all(
       embeddings.map(emb => engine.searchVector(emb, searchOpts)),

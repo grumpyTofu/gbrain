@@ -112,7 +112,10 @@ export async function importFromContent(
   // Embed BEFORE the transaction (external API call)
   if (!opts.noEmbed && chunks.length > 0) {
     try {
-      const embeddings = await embedBatch(chunks.map(c => c.chunk_text));
+      const embeddings = await embedBatch(
+        chunks.map(c => c.chunk_text),
+        { task: 'passage' },
+      );
       for (let i = 0; i < chunks.length; i++) {
         chunks[i].embedding = embeddings[i];
         chunks[i].token_count = Math.ceil(chunks[i].chunk_text.length / 4);
